@@ -17,7 +17,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.main)
 
         findViewById<SnapshotView>(R.id.snapshotView).apply {
-            init(window.decorView as ViewGroup)
+            // Works with the direct parent as the root view + workaround in `takeSnapshot`
+            init(parent as ViewGroup)
+            // Crashes with the decorView as root.
+            // If the root is NOT a direct parent of SnapshotView, stack overflow happens on RenderThread
+//            init(window.decorView as ViewGroup)
         }
 
         findViewById<TextView>(R.id.text)
@@ -57,10 +61,10 @@ class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context,
     private fun takeSnapshot() {
         val canvas = node.beginRecording()
         drawingSnapshot = true
+        visibility = GONE
         root.draw(canvas)
+        visibility = VISIBLE
         drawingSnapshot = false
         node.endRecording()
-        // This is causing a constant redraw, but it doesn't really matter
-        invalidate()
     }
 }
