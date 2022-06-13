@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.doOnLayout
@@ -16,7 +17,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main)
 
-        findViewById<SnapshotView>(R.id.snapshotView).apply {
+        findViewById<SnapshotViewParent>(R.id.snapshotViewParent).apply {
             init(window.decorView as ViewGroup)
         }
 
@@ -28,21 +29,23 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
+class SnapshotViewParent(context: Context, attributeSet: AttributeSet) :
+    FrameLayout(context, attributeSet) {
+
     private val node = RenderNode("lol")
-    private var drawingSnapshot = false
+    private var shouldSkipDrawing = false
     private lateinit var root: ViewGroup
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        // Guarded by `drawingSnapshot` to prevent recursive drawing
-        if (!drawingSnapshot && node.hasDisplayList()) {
-            canvas.drawRenderNode(node)
+    override fun drawChild(canvas: Canvas, child: View, drawingTime: Long): Boolean {
+        if (shouldSkipDrawing) {
+            return false
         }
+        return super.drawChild(canvas, child, drawingTime)
     }
 
     fun init(root: ViewGroup) {
         this.root = root
+        (getChildAt(0) as SnapshotView).node = node
 
         root.doOnLayout {
             node.setPosition(0, 0, width, height)
@@ -53,14 +56,25 @@ class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context,
         }
     }
 
-
     private fun takeSnapshot() {
         val canvas = node.beginRecording()
-        drawingSnapshot = true
+
+        shouldSkipDrawing = true
         root.draw(canvas)
-        drawingSnapshot = false
+        shouldSkipDrawing = false
         node.endRecording()
-        // This is causing a constant redraw, but it doesn't really matter
-        invalidate()
+
+        getChildAt(0).invalidate()
+        // FIXME Invalidating itself still crashes and causes stack overflow
+        // invalidate()
+    }
+}
+
+class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
+    var node: RenderNode? = null
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawRenderNode(node!!)
     }
 }
