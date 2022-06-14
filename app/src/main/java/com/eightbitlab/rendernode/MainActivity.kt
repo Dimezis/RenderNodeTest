@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.doOnLayout
 
@@ -22,33 +23,25 @@ class MainActivity : AppCompatActivity() {
             init(window.decorView as ViewGroup)
         }
 
-//        findViewById<TextView>(R.id.text)
-//            .animate()
-//            .setDuration(10_000)
-//            .x(800f)
-//            .y(1200f)
+        findViewById<TextView>(R.id.text)
+            .animate()
+            .setDuration(10_000)
+            .x(800f)
+            .y(1200f)
     }
 }
 
 class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
-    private var drawingSnapshot = false
     private lateinit var root: ViewGroup
-    private var reader: ImageReader? = null
+    private lateinit var reader: ImageReader
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        // Guarded by `drawingSnapshot` to prevent recursive drawing
-        if (!drawingSnapshot) {
-            // TODO test how long it takes to create all this stuff
-            val img = reader!!.acquireLatestImage() ?: return
-            img.hardwareBuffer?.let {
-                val hwBitmap = Bitmap.wrapHardwareBuffer(it, null)!!
-                canvas.drawBitmap(
-                    hwBitmap, 0f, 0f, null
-                )
-                it.close()
-                img.close()
-            }
+    override fun draw(canvas: Canvas) {
+        super.draw(canvas)
+        val img = reader.acquireLatestImage() ?: return
+        img.hardwareBuffer?.use {
+            val hwBitmap = Bitmap.wrapHardwareBuffer(it, null)!!
+            canvas.drawBitmap(hwBitmap, 0f, 0f, null)
+            img.close()
         }
     }
 
@@ -70,14 +63,11 @@ class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context,
         }
     }
 
-
     private fun takeSnapshot() {
-        val canvas = reader!!.surface.lockHardwareCanvas()
-        drawingSnapshot = true
+        visibility = INVISIBLE
+        val canvas = reader.surface.lockHardwareCanvas()
         root.draw(canvas)
-        drawingSnapshot = false
-        reader!!.surface.unlockCanvasAndPost(canvas)
-        // This is causing a constant redraw, but it doesn't really matter
-        invalidate()
+        reader.surface.unlockCanvasAndPost(canvas)
+        visibility = VISIBLE
     }
 }
