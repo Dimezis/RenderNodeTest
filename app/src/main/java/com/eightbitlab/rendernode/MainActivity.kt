@@ -37,7 +37,7 @@ class SnapshotView(context: Context, attributeSet: AttributeSet) : View(context,
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
-        val img = reader.acquireLatestImage() ?: return
+        val img = reader.acquireNextImage() ?: return
         img.hardwareBuffer?.use {
             val hwBitmap = Bitmap.wrapHardwareBuffer(it, null)!!
             canvas.drawBitmap(hwBitmap, 0f, 0f, null)
